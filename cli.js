@@ -160,7 +160,6 @@ async function collectDroid() {
       for await (const line of rl) {
         try {
           const obj = JSON.parse(line)
-          if (obj.type === "session_start" && obj.decompSessionType) { date = null; break }
           if (obj.type === "message" && obj.timestamp) { date = isoToDate(obj.timestamp); break }
         } catch {}
       }
@@ -375,12 +374,10 @@ async function collectTimeDroid() {
     if (path.endsWith(".settings.json")) continue
     try {
       const rl = createInterface({ input: createReadStream(join(dir, path)), crlfDelay: Infinity })
-      let isSubagent = false
       let turnStart = null, turnEnd = null
       for await (const line of rl) {
         try {
           const obj = JSON.parse(line)
-          if (obj.type === "session_start" && obj.decompSessionType) { isSubagent = true; break }
           if (obj.type !== "message") continue
           const ts = obj.timestamp ? new Date(obj.timestamp).getTime() : null
           if (!ts) continue
@@ -393,7 +390,7 @@ async function collectTimeDroid() {
           }
         } catch {}
       }
-      if (!isSubagent) addTurnHours(counts, turnStart, turnEnd)
+      addTurnHours(counts, turnStart, turnEnd)
     } catch {}
   }
   return counts
