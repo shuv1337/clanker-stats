@@ -31,3 +31,4 @@ Copies the chart to your clipboard, opens X with a pre-filled post. Just paste a
 | Amp | `~/.local/share/amp/threads/` |
 | Pi | `~/.pi/agent/sessions/` |
 | Mistral Vibe | `~/.vibe/logs/session/` |
+| Droid | `~/.factory/sessions/` |

@@ -143,6 +143,33 @@ async function collectPi() {
   return counts
 }
 
+async function collectDroid() {
+  const counts = new Map()
+  const dir = join(home, ".factory", "sessions")
+  for (const path of await fg("**/*.settings.json", { cwd: dir })) {
+    try {
+      const settings = JSON.parse(await readFile(join(dir, path), "utf-8"))
+      const u = settings.tokenUsage
+      if (!u) continue
+      const tokens = (u.inputTokens || 0) + (u.outputTokens || 0) +
+        (u.cacheCreationTokens || 0) + (u.cacheReadTokens || 0) + (u.thinkingTokens || 0)
+      if (tokens <= 0) continue
+      const jsonlPath = join(dir, path.replace(".settings.json", ".jsonl"))
+      const rl = createInterface({ input: createReadStream(jsonlPath), crlfDelay: Infinity })
+      let date = null
+      for await (const line of rl) {
+        try {
+          const obj = JSON.parse(line)
+          if (obj.type === "session_start" && obj.decompSessionType) { date = null; break }
+          if (obj.type === "message" && obj.timestamp) { date = isoToDate(obj.timestamp); break }
+        } catch {}
+      }
+      if (date) add(counts, date, tokens)
+    } catch {}
+  }
+  return counts
+}
+
 // --hours: collect hours per day from user→last assistant message time diffs
 function addTurnHours(map, turnStart, turnEnd) {
   if (!turnStart || !turnEnd || turnEnd <= turnStart) return
@@ -341,6 +368,37 @@ async function collectTimePi() {
   return counts
 }
 
+async function collectTimeDroid() {
+  const counts = new Map()
+  const dir = join(home, ".factory", "sessions")
+  for (const path of await fg("**/*.jsonl", { cwd: dir })) {
+    if (path.endsWith(".settings.json")) continue
+    try {
+      const rl = createInterface({ input: createReadStream(join(dir, path)), crlfDelay: Infinity })
+      let isSubagent = false
+      let turnStart = null, turnEnd = null
+      for await (const line of rl) {
+        try {
+          const obj = JSON.parse(line)
+          if (obj.type === "session_start" && obj.decompSessionType) { isSubagent = true; break }
+          if (obj.type !== "message") continue
+          const ts = obj.timestamp ? new Date(obj.timestamp).getTime() : null
+          if (!ts) continue
+          if (obj.message?.role === "user") {
+            addTurnHours(counts, turnStart, turnEnd)
+            turnStart = ts
+            turnEnd = null
+          } else if (obj.message?.role === "assistant" && turnStart) {
+            turnEnd = ts
+          }
+        } catch {}
+      }
+      if (!isSubagent) addTurnHours(counts, turnStart, turnEnd)
+    } catch {}
+  }
+  return counts
+}
+
 const tools = [
   { name: "Claude Code", collect: collectClaude, collectTime: collectTimeClaude, color: "#f97316" },
   { name: "Codex", collect: collectCodex, collectTime: collectTimeCodex, color: "#22c55e" },
@@ -349,6 +407,7 @@ const tools = [
   { name: "Amp", collect: collectAmp, collectTime: collectTimeAmp, color: "#a855f7" },
   { name: "Pi", collect: collectPi, collectTime: collectTimePi, color: "#ec4899" },
   { name: "Mistral Vibe", collect: collectVibe, collectTime: collectTimeVibe, color: "#6366f1" },
+  { name: "Droid", collect: collectDroid, collectTime: collectTimeDroid, color: "#14b8a6" },
 ]
 
 function catmullRomPath(points, tension = 0.3, yFloor) {
