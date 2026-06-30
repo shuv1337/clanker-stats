@@ -489,7 +489,7 @@ function renderChart(allDays, results, total, { unit = "TOKENS", cmd = "npx clan
   const baseline = pad.top + chartH
 
   let areas = ""
-  for (let t = results.length - 1; t >= 0; t--) {
+  for (let t = 0; t < results.length; t++) {
     const topPoints = Array.from({ length: numWeeks }, (_, w) => ({ x: toX(w), y: toY(stacked[t][w]) }))
     const botPoints = t === 0
       ? [{ x: toX(0), y: baseline }, { x: toX(numWeeks - 1), y: baseline }]
